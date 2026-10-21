@@ -111,7 +111,7 @@ class UsbRgbController(private val context: Context) {
         val conn = connection ?: return false
         val intf = usbInterface ?: return false
 
-        val requestType = UsbConstants.USB_DIR_OUT or UsbConstants.USB_TYPE_CLASS or UsbConstants.USB_RECIP_INTERFACE
+        val requestType = UsbConstants.USB_DIR_OUT or UsbConstants.USB_TYPE_CLASS or 0x01
         val request = 0x09
         val value = 0x0200
         val index = intf.id
