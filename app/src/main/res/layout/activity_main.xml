@@ -33,7 +33,6 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp" />
 
-        <!-- Toggle between Global and Per-Key -->
         <Button
             android:id="@+id/btnToggleMode"
             android:layout_width="match_parent"
@@ -97,16 +96,24 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Select a key below, then pick a color to apply."
+                android:text="Tap any key to apply the color. Scroll horizontally to see all keys."
                 android:layout_marginBottom="8dp"/>
 
-            <!-- The 61-key Grid -->
-            <GridLayout
-                android:id="@+id/keyGrid"
+            <!-- The Keyboard Horizontal Scroll -->
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="10"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="16dp"
+                android:scrollbars="horizontal"
+                android:background="#222222"> <!-- Dark background makes keyboard pop -->
+                
+                <LinearLayout
+                    android:id="@+id/keyRowContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="8dp"/>
+            </HorizontalScrollView>
 
             <Button
                 android:id="@+id/btnApplyAll"
@@ -116,7 +123,7 @@
                 android:layout_marginBottom="16dp"/>
         </LinearLayout>
 
-        <!-- COLOR PICKER SECTION (Shared) -->
+        <!-- COLOR PICKER SECTION -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
