@@ -3,6 +3,8 @@ package com.ishan.mk1300
 import android.graphics.Color
 import android.hardware.usb.UsbDevice
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
@@ -18,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var usbController: UsbRgbController
     private var activeDevice: UsbDevice? = null
+    private var isUpdatingUI = false // Prevents infinite loops between Hex and Sliders
 
     private val TARGET_VID = 0x0000 
     private val TARGET_PID = 0x0000
@@ -29,6 +32,9 @@ class MainActivity : AppCompatActivity() {
         "13: TrigSingle", "14: Soduko", "15: Tide", "16: UserLight",
         "0: System Dark"
     )
+
+    // FIX: Maps the UI dropdown position (0-16) to the actual hardware values (1-16, then 0)
+    private val hardwareModes = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,27 +48,61 @@ class MainActivity : AppCompatActivity() {
         )
 
         setupListeners()
+        updateHexFromSliders() // Initialize
     }
 
     private fun setupListeners() {
         binding.btnScanConnect.setOnClickListener { 
-            try {
-                scanAndConnect() 
-            } catch (e: Exception) {
-                log("CRITICAL CRASH PREVENTED: ${e.message}")
-            }
+            try { scanAndConnect() } catch (e: Exception) { log("CRITICAL: ${e.message}") }
         }
 
-        val seekListener = object : SeekBar.OnSeekBarChangeListener {
+        // RGB Slider Listener
+        val rgbSeekListener = object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser && !isUpdatingUI) {
+                    updateHexFromSliders()
+                    updateColorPreviewAndSend()
+                }
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        }
+        binding.seekR.setOnSeekBarChangeListener(rgbSeekListener)
+        binding.seekG.setOnSeekBarChangeListener(rgbSeekListener)
+        binding.seekB.setOnSeekBarChangeListener(rgbSeekListener)
+
+        // Hex Input Listener
+        binding.etHex.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                if (isUpdatingUI) return
+                val hex = s.toString().replace("#", "").trim()
+                if (hex.length == 6) {
+                    try {
+                        val r = Integer.parseInt(hex.substring(0, 2), 16)
+                        val g = Integer.parseInt(hex.substring(2, 4), 16)
+                        val b = Integer.parseInt(hex.substring(4, 6), 16)
+                        isUpdatingUI = true
+                        binding.seekR.progress = r
+                        binding.seekG.progress = g
+                        binding.seekB.progress = b
+                        isUpdatingUI = false
+                        updateColorPreviewAndSend()
+                    } catch (e: Exception) {} // Ignore invalid hex
+                }
+            }
+        })
+
+        val basicSeekListener = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) updateColorPreviewAndSend()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         }
-        binding.seekBrightness.setOnSeekBarChangeListener(seekListener)
-        binding.seekSpeed.setOnSeekBarChangeListener(seekListener)
-        binding.seekHue.setOnSeekBarChangeListener(seekListener)
+        binding.seekBrightness.setOnSeekBarChangeListener(basicSeekListener)
+        binding.seekSpeed.setOnSeekBarChangeListener(basicSeekListener)
 
         binding.spinnerEffect.setOnItemSelectedListener(
             object : android.widget.AdapterView.OnItemSelectedListener {
@@ -74,11 +114,27 @@ class MainActivity : AppCompatActivity() {
         )
 
         binding.btnLuck.setOnClickListener {
-            val hue = (0..255).random()
-            binding.seekHue.progress = hue
+            isUpdatingUI = true
+            binding.seekR.progress = (0..255).random()
+            binding.seekG.progress = (0..255).random()
+            binding.seekB.progress = (0..255).random()
+            isUpdatingUI = false
+            updateHexFromSliders()
             updateColorPreviewAndSend()
-            log("🎲 Luck roll → Hue $hue")
+            log("🎲 Luck roll applied!")
         }
+    }
+
+    private fun updateHexFromSliders() {
+        val r = binding.seekR.progress
+        val g = binding.seekG.progress
+        val b = binding.seekB.progress
+        val hex = String.format("#%02X%02X%02X", r, g, b)
+        
+        isUpdatingUI = true
+        binding.etHex.setText(hex)
+        binding.etHex.setSelection(binding.etHex.text.length) // Put cursor at end
+        isUpdatingUI = false
     }
 
     private fun scanAndConnect() {
@@ -90,11 +146,6 @@ class MainActivity : AppCompatActivity() {
                         log("No USB devices found. Check OTG connection.")
                         return@withContext
                     }
-                    val sb = StringBuilder("Detected devices:\n")
-                    devices.forEach { d ->
-                        sb.append("VID=0x${d.vendorId.toString(16).uppercase()} PID=0x${d.productId.toString(16).uppercase()} — ${d.productName ?: "Unknown"}\n")
-                    }
-                    log(sb.toString())
                 }
 
                 val target = devices.firstOrNull {
@@ -127,24 +178,31 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    log("SCAN ERROR: ${e.message}")
-                }
+                withContext(Dispatchers.Main) { log("SCAN ERROR: ${e.message}") }
             }
         }
     }
 
     private fun updateColorPreviewAndSend() {
         try {
-            val hue = binding.seekHue.progress
-            val color = Color.HSVToColor(floatArrayOf(hue.toFloat(), 1f, 1f))
+            val r = binding.seekR.progress
+            val g = binding.seekG.progress
+            val b = binding.seekB.progress
+            
+            // Update Preview
+            val color = Color.rgb(r, g, b)
             binding.colorPreview.setBackgroundColor(color)
 
             val device = activeDevice ?: return
-            val mode = binding.spinnerEffect.selectedItemPosition
+            
+            // Fix effect mode mapping
+            val uiPosition = binding.spinnerEffect.selectedItemPosition
+            val mode = hardwareModes[uiPosition]
+            
             val brightness = binding.seekBrightness.progress
             val speed = binding.seekSpeed.progress
 
+            // Convert RGB to HSV for the hardware
             val hsv = FloatArray(3)
             Color.colorToHSV(color, hsv)
             val h = (hsv[0] / 360f * 255f).roundToInt().coerceIn(0, 255)
@@ -156,7 +214,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 val success = usbController.sendPacket(packet)
                 withContext(Dispatchers.Main) {
-                    log(if (success) "Packet sent (mode=$mode, HSV=$h/$s/$v)" else "Packet failed")
+                    log(if (success) "Packet sent (Mode $mode | RGB $r,$g,$b)" else "Packet failed")
                 }
             }
         } catch (e: Exception) {
