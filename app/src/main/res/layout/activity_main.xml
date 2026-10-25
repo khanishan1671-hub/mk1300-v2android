@@ -68,27 +68,67 @@
             android:layout_height="wrap_content"
             android:max="4"
             android:progress="2"
+            android:layout_marginBottom="16dp" />
+
+        <!-- COLOR PICKER SECTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hex Color Code"
+            android:layout_gravity="start" />
+        <EditText
+            android:id="@+id/etHex"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:hint="#FFFFFF"
+            android:maxLength="7"
+            android:singleLine="true"
             android:layout_marginBottom="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Hue (0–255)"
+            android:text="Red (0–255)"
             android:layout_gravity="start" />
         <SeekBar
-            android:id="@+id/seekHue"
+            android:id="@+id/seekR"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:max="255"
-            android:progress="128"
-            android:layout_marginBottom="8dp" />
+            android:progress="0" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Green (0–255)"
+            android:layout_gravity="start" />
+        <SeekBar
+            android:id="@+id/seekG"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="255"
+            android:progress="255" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Blue (0–255)"
+            android:layout_gravity="start" />
+        <SeekBar
+            android:id="@+id/seekB"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="255"
+            android:progress="255"
+            android:layout_marginBottom="12dp" />
 
         <View
             android:id="@+id/colorPreview"
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:background="#00FFFF"
-            android:layout_marginBottom="12dp" />
+            android:layout_marginBottom="16dp" />
 
         <Button
             android:id="@+id/btnLuck"
