@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.*
+import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -39,12 +40,21 @@ class UsbRgbController(private val context: Context) {
 
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
-                context.unregisterReceiver(this)
+                try { context.unregisterReceiver(this) } catch (e: Exception) {}
                 val granted = intent?.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false) == true
                 cont.resume(granted)
             }
         }
-        context.registerReceiver(receiver, IntentFilter(ACTION_USB_PERMISSION))
+        
+        val filter = IntentFilter(ACTION_USB_PERMISSION)
+        
+        // FIX FOR ANDROID 12/13/14+: Must specify RECEIVER_NOT_EXPORTED
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+
         val pi = PendingIntent.getBroadcast(
             context, 0, Intent(ACTION_USB_PERMISSION),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -53,12 +63,10 @@ class UsbRgbController(private val context: Context) {
     }
 
     fun openDevice(device: UsbDevice): Boolean {
-        // SAFETY NET: Wraps everything so it cannot crash the app
         try {
             var targetIntf: UsbInterface? = null
             var targetEp: UsbEndpoint? = null
 
-            // Loop through all interfaces to find the one with an OUT endpoint
             for (i in 0 until device.interfaceCount) {
                 val intf = device.getInterface(i)
                 for (j in 0 until intf.endpointCount) {
@@ -73,18 +81,14 @@ class UsbRgbController(private val context: Context) {
             }
 
             if (targetIntf == null || targetEp == null) {
-                Log.e(TAG, "No OUT endpoint found on any interface")
+                Log.e(TAG, "No OUT endpoint found")
                 return false
             }
 
-            val conn = usbManager.openDevice(device) ?: run {
-                Log.e(TAG, "openDevice failed")
-                return false
-            }
+            val conn = usbManager.openDevice(device) ?: return false
 
-            // Try to claim it. If Android blocks it, the catch block will handle it.
             if (!conn.claimInterface(targetIntf, true)) {
-                Log.e(TAG, "claimInterface failed. The system might be holding it.")
+                Log.e(TAG, "claimInterface failed")
                 conn.close()
                 return false
             }
@@ -93,11 +97,10 @@ class UsbRgbController(private val context: Context) {
             usbInterface = targetIntf
             outEndpoint = targetEp
             isConnected = true
-            Log.d(TAG, "Successfully claimed interface ID: ${targetIntf.id}")
             return true
 
         } catch (e: Exception) {
-            Log.e(TAG, "CRASH PREVENTED in openDevice: ${e.message}")
+            Log.e(TAG, "openDevice error: ${e.message}")
             return false
         }
     }
@@ -108,15 +111,8 @@ class UsbRgbController(private val context: Context) {
 
         return try {
             val sent = conn.bulkTransfer(ep, packet, packet.size, 1000)
-            if (sent >= 0) {
-                Log.d(TAG, "bulkTransfer sent $sent bytes")
-                true
-            } else {
-                Log.w(TAG, "bulkTransfer failed ($sent), trying controlTransfer")
-                tryControlTransfer(packet)
-            }
+            if (sent >= 0) true else tryControlTransfer(packet)
         } catch (e: Exception) {
-            Log.e(TAG, "sendPacket error: ${e.message}")
             false
         }
     }
@@ -131,7 +127,6 @@ class UsbRgbController(private val context: Context) {
         val index = intf.id
 
         val result = conn.controlTransfer(requestType, request, value, index, packet, packet.size, 1000)
-        Log.d(TAG, "controlTransfer result: $result")
         return result >= 0
     }
 
@@ -139,9 +134,7 @@ class UsbRgbController(private val context: Context) {
         try {
             usbInterface?.let { connection?.releaseInterface(it) }
             connection?.close()
-        } catch (e: Exception) {
-            Log.e(TAG, "close error: ${e.message}")
-        } finally {
+        } catch (e: Exception) {} finally {
             connection = null
             usbInterface = null
             outEndpoint = null
