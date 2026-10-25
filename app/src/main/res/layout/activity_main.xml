@@ -31,46 +31,92 @@
             android:text="Disconnected"
             android:textColor="#FF0000"
             android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Toggle between Global and Per-Key -->
+        <Button
+            android:id="@+id/btnToggleMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Switch to Per-Key Matrix"
             android:layout_marginBottom="16dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Effect Mode"
-            android:layout_gravity="start" />
-        <Spinner
-            android:id="@+id/spinnerEffect"
+        <!-- GLOBAL CONTROLS -->
+        <LinearLayout
+            android:id="@+id/layoutGlobal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp" />
+            android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Brightness (0–4)"
-            android:layout_gravity="start" />
-        <SeekBar
-            android:id="@+id/seekBrightness"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Effect Mode"
+                android:layout_gravity="start" />
+            <Spinner
+                android:id="@+id/spinnerEffect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Brightness (0–4)"
+                android:layout_gravity="start" />
+            <SeekBar
+                android:id="@+id/seekBrightness"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="4"
+                android:progress="4"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Speed (0–4)"
+                android:layout_gravity="start" />
+            <SeekBar
+                android:id="@+id/seekSpeed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="4"
+                android:progress="2"
+                android:layout_marginBottom="16dp" />
+        </LinearLayout>
+
+        <!-- PER-KEY MATRIX CONTROLS -->
+        <LinearLayout
+            android:id="@+id/layoutPerKey"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:max="4"
-            android:progress="4"
-            android:layout_marginBottom="12dp" />
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Speed (0–4)"
-            android:layout_gravity="start" />
-        <SeekBar
-            android:id="@+id/seekSpeed"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="4"
-            android:progress="2"
-            android:layout_marginBottom="16dp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Select a key below, then pick a color to apply."
+                android:layout_marginBottom="8dp"/>
 
-        <!-- COLOR PICKER SECTION -->
+            <!-- The 61-key Grid -->
+            <GridLayout
+                android:id="@+id/keyGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="10"
+                android:layout_marginBottom="16dp"/>
+
+            <Button
+                android:id="@+id/btnApplyAll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Apply Color to ALL Keys"
+                android:layout_marginBottom="16dp"/>
+        </LinearLayout>
+
+        <!-- COLOR PICKER SECTION (Shared) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
