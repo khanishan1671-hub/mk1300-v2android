@@ -8,7 +8,7 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.GridLayout
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -38,18 +38,45 @@ class MainActivity : AppCompatActivity() {
     )
     private val hardwareModes = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0)
 
-    // Store the color state for all 61 keys
-    // FIXED: Added .toByte() to the default Cyan values
-    private val keyColors = Array(61) { byteArrayOf(0.toByte(), 255.toByte(), 255.toByte()) } 
-    
-    // Labels for the grid (roughly matching the 61 keys)
-    private val keyLabels = arrayOf(
-        "Esc", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Back",
-        "Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]", "\\",
-        "Caps", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "Enter",
-        "Shift", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "RShift",
-        "Ctrl", "Win", "Alt", "Space", "Alt", "Fn", "Menu", "Ctrl"
+    // Data classes to hold kicktroll's exact layout
+    data class KeyDef(val index: Int, val name: String, val width: Float, val row: Int)
+
+    private val keyboardLayout = listOf(
+        // Row 0
+        KeyDef(21, "Esc", 1f, 0), KeyDef(22, "1", 1f, 0), KeyDef(23, "2", 1f, 0),
+        KeyDef(24, "3", 1f, 0), KeyDef(25, "4", 1f, 0), KeyDef(26, "5", 1f, 0),
+        KeyDef(27, "6", 1f, 0), KeyDef(28, "7", 1f, 0), KeyDef(29, "8", 1f, 0),
+        KeyDef(30, "9", 1f, 0), KeyDef(31, "0", 1f, 0), KeyDef(32, "-", 1f, 0),
+        KeyDef(33, "=", 1f, 0), KeyDef(34, "Back", 2f, 0),
+        
+        // Row 1
+        KeyDef(42, "Tab", 1.5f, 1), KeyDef(43, "Q", 1f, 1), KeyDef(44, "W", 1f, 1),
+        KeyDef(45, "E", 1f, 1), KeyDef(46, "R", 1f, 1), KeyDef(47, "T", 1f, 1),
+        KeyDef(48, "Y", 1f, 1), KeyDef(49, "U", 1f, 1), KeyDef(50, "I", 1f, 1),
+        KeyDef(51, "O", 1f, 1), KeyDef(52, "P", 1f, 1), KeyDef(53, "[", 1f, 1),
+        KeyDef(54, "]", 1f, 1), KeyDef(55, "\\", 1.5f, 1),
+
+        // Row 2
+        KeyDef(63, "Caps", 1.75f, 2), KeyDef(64, "A", 1f, 2), KeyDef(65, "S", 1f, 2),
+        KeyDef(66, "D", 1f, 2), KeyDef(67, "F", 1f, 2), KeyDef(68, "G", 1f, 2),
+        KeyDef(69, "H", 1f, 2), KeyDef(70, "J", 1f, 2), KeyDef(71, "K", 1f, 2),
+        KeyDef(72, "L", 1f, 2), KeyDef(73, ";", 1f, 2), KeyDef(74, "'", 1f, 2),
+        KeyDef(76, "Enter", 2.25f, 2),
+
+        // Row 3
+        KeyDef(84, "Shift", 2.25f, 3), KeyDef(86, "Z", 1f, 3), KeyDef(87, "X", 1f, 3),
+        KeyDef(88, "C", 1f, 3), KeyDef(89, "V", 1f, 3), KeyDef(90, "B", 1f, 3),
+        KeyDef(91, "N", 1f, 3), KeyDef(92, "M", 1f, 3), KeyDef(93, ",", 1f, 3),
+        KeyDef(94, ".", 1f, 3), KeyDef(95, "/", 1f, 3), KeyDef(97, "Shift", 2.75f, 3),
+
+        // Row 4
+        KeyDef(105, "Ctrl", 1.25f, 4), KeyDef(106, "Win", 1.25f, 4), KeyDef(107, "Alt", 1.25f, 4),
+        KeyDef(111, "Space", 6.25f, 4), KeyDef(115, "Alt", 1.25f, 4), KeyDef(116, "Menu", 1f, 4),
+        KeyDef(117, "Ctrl", 1.25f, 4), KeyDef(118, "Fn", 1.5f, 4)
     )
+
+    // Max index is 118, so we need at least 119 slots.
+    private val keyColors = Array(119) { byteArrayOf(0.toByte(), 255.toByte(), 255.toByte()) } 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,38 +86,57 @@ class MainActivity : AppCompatActivity() {
         usbController = UsbRgbController(this)
         binding.spinnerEffect.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, effectModes)
 
-        buildKeyGrid()
+        buildRealKeyboard()
         setupListeners()
         updateHexFromSliders()
     }
 
-    private fun buildKeyGrid() {
-        binding.keyGrid.removeAllViews()
-        for (i in 0 until 61) {
+    private fun buildRealKeyboard() {
+        binding.keyRowContainer.removeAllViews()
+        
+        // We create 5 vertical columns (one for each row of the keyboard)
+        val rowContainers = Array(5) { LinearLayout(this) }
+        
+        for (i in 0 until 5) {
+            rowContainers[i].orientation = LinearLayout.VERTICAL
+            rowContainers[i].layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            binding.keyRowContainer.addView(rowContainers[i])
+        }
+
+        // Now populate each row
+        for (keyDef in keyboardLayout) {
             val btn = Button(this)
-            btn.text = if (i < keyLabels.size) keyLabels[i] else "K$i"
-            btn.textSize = 9f
+            btn.text = keyDef.name
+            btn.textSize = 10f
             btn.setPadding(0, 0, 0, 0)
-            
-            val params = GridLayout.LayoutParams()
-            params.width = 0
-            params.height = GridLayout.LayoutParams.WRAP_CONTENT
-            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-            params.setMargins(2, 2, 2, 2)
+            btn.isAllCaps = false
+
+            // Convert the float width (e.g., 1.5f) to pixels
+            val widthPx = (keyDef.width * 45).toInt() // 45dp base width for a standard key
+            val heightPx = 45 * resources.displayMetrics.density.toInt()
+
+            val params = LinearLayout.LayoutParams(widthPx, heightPx)
+            params.setMargins(3, 3, 3, 3)
             btn.layoutParams = params
 
-            btn.setBackgroundColor(Color.rgb(keyColors[i][0].toInt(), keyColors[i][1].toInt(), keyColors[i][2].toInt()))
+            // Set initial color
+            val c = keyColors[keyDef.index]
+            btn.setBackgroundColor(Color.rgb(c[0].toInt(), c[1].toInt(), c[2].toInt()))
             
+            // On click, send color to THAT specific index
             btn.setOnClickListener {
-                // Instantly send the current slider color to this specific key
                 val r = binding.seekR.progress.toByte()
                 val g = binding.seekG.progress.toByte()
                 val b = binding.seekB.progress.toByte()
-                keyColors[i] = byteArrayOf(r, g, b)
+                keyColors[keyDef.index] = byteArrayOf(r, g, b)
                 btn.setBackgroundColor(Color.rgb(r.toInt(), g.toInt(), b.toInt()))
-                sendPerKeyPacket(i, r, g, b)
+                sendPerKeyPacket(keyDef.index, r, g, b)
             }
-            binding.keyGrid.addView(btn)
+            
+            rowContainers[keyDef.row].addView(btn)
         }
     }
 
@@ -105,11 +151,15 @@ class MainActivity : AppCompatActivity() {
                 binding.layoutGlobal.visibility = View.GONE
                 binding.layoutPerKey.visibility = View.VISIBLE
                 binding.btnToggleMode.text = "Switch to Global Effects"
+                
+                // Force UserLight mode to accept per-key
+                binding.spinnerEffect.setSelection(15) // "16: UserLight"
+                updateColorPreviewAndSend() 
             } else {
                 binding.layoutGlobal.visibility = View.VISIBLE
                 binding.layoutPerKey.visibility = View.GONE
                 binding.btnToggleMode.text = "Switch to Per-Key Matrix"
-                updateColorPreviewAndSend() // Re-apply global effect
+                updateColorPreviewAndSend()
             }
         }
 
@@ -117,10 +167,10 @@ class MainActivity : AppCompatActivity() {
             val r = binding.seekR.progress.toByte()
             val g = binding.seekG.progress.toByte()
             val b = binding.seekB.progress.toByte()
-            for (i in 0 until 61) {
+            for (i in 0 until 119) {
                 keyColors[i] = byteArrayOf(r, g, b)
             }
-            buildKeyGrid() // Update UI
+            buildRealKeyboard() // Update UI colors
             sendAllKeysPacket()
         }
 
@@ -225,7 +275,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         binding.tvStatus.text = "Failed to open device."
                         binding.tvStatus.setTextColor(Color.RED)
-                        log("openDevice() failed. The vendor interface may not exist.")
+                        log("openDevice() failed.")
                     }
                 }
             } catch (e: Exception) {
@@ -234,7 +284,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- GLOBAL EFFECT LOGIC ---
     private fun updateColorPreviewAndSend() {
         try {
             val r = binding.seekR.progress
@@ -260,7 +309,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 val success = usbController.sendPacket(packet)
                 withContext(Dispatchers.Main) {
-                    log(if (success) "Global Packet sent (Mode $mode | RGB $r,$g,$b)" else "Global Packet failed")
+                    log(if (success) "Global Packet sent (Mode $mode)" else "Global Packet failed")
                 }
             }
         } catch (e: Exception) {
@@ -268,7 +317,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- PER-KEY LOGIC (Translated from kicktroll) ---
     private fun sendPerKeyPacket(keyIndex: Int, r: Byte, g: Byte, b: Byte) {
         if (activeDevice == null) return
         
@@ -287,7 +335,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             usbController.sendPacket(finalCmd)
             withContext(Dispatchers.Main) {
-                log("Per-Key Packet sent: Key $keyIndex")
+                log("Per-Key Packet: Index $keyIndex")
             }
         }
     }
@@ -295,7 +343,8 @@ class MainActivity : AppCompatActivity() {
     private fun sendAllKeysPacket() {
         if (activeDevice == null) return
 
-        val totalBytes = 61 * 3
+        // Max index 118 = 119 total keys. 119 * 3 = 357 total bytes.
+        val totalBytes = 119 * 3 
         val chunkSize = 56
         val chunks = Math.ceil(totalBytes.toDouble() / chunkSize).toInt()
 
@@ -314,12 +363,12 @@ class MainActivity : AppCompatActivity() {
             for (j in 0 until thisChunk) {
                 val byteIndex = offset + j
                 val keyIndex = byteIndex / 3
-                val colorChannel = byteIndex % 3 // 0=R, 1=G, 2=B
-                packet[7 + j] = keyColors[keyIndex][colorChannel]
+                val colorChannel = byteIndex % 3 
+                // Check bounds just in case
+                packet[7 + j] = if (keyIndex < keyColors.size) keyColors[keyIndex][colorChannel] else 0
             }
 
             val finalCmd = byteArrayOf(6) + packet
-            
             usbController.sendPacket(finalCmd)
         }
         log("Sent ALL keys packet chunks.")
