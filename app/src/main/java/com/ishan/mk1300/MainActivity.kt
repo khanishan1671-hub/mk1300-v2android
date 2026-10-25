@@ -45,7 +45,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        binding.btnScanConnect.setOnClickListener { scanAndConnect() }
+        binding.btnScanConnect.setOnClickListener { 
+            try {
+                scanAndConnect() 
+            } catch (e: Exception) {
+                log("CRITICAL CRASH PREVENTED: ${e.message}")
+            }
+        }
 
         val seekListener = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -77,74 +83,84 @@ class MainActivity : AppCompatActivity() {
 
     private fun scanAndConnect() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val devices = (getSystemService(USB_SERVICE) as android.hardware.usb.UsbManager).deviceList.values
-            withContext(Dispatchers.Main) {
-                if (devices.isEmpty()) {
-                    log("No USB devices found. Check OTG connection.")
-                    return@withContext
+            try {
+                val devices = (getSystemService(USB_SERVICE) as android.hardware.usb.UsbManager).deviceList.values
+                withContext(Dispatchers.Main) {
+                    if (devices.isEmpty()) {
+                        log("No USB devices found. Check OTG connection.")
+                        return@withContext
+                    }
+                    val sb = StringBuilder("Detected devices:\n")
+                    devices.forEach { d ->
+                        sb.append("VID=0x${d.vendorId.toString(16).uppercase()} PID=0x${d.productId.toString(16).uppercase()} — ${d.productName ?: "Unknown"}\n")
+                    }
+                    log(sb.toString())
                 }
-                val sb = StringBuilder("Detected devices:\n")
-                devices.forEach { d ->
-                    sb.append("VID=0x${d.vendorId.toString(16).uppercase()} PID=0x${d.productId.toString(16).uppercase()} — ${d.productName ?: "Unknown"}\n")
+
+                val target = devices.firstOrNull {
+                    it.vendorId == TARGET_VID && it.productId == TARGET_PID
+                } ?: devices.firstOrNull()
+
+                if (target == null) {
+                    withContext(Dispatchers.Main) { log("No target device selected.") }
+                    return@launch
                 }
-                log(sb.toString())
-            }
 
-            val target = devices.firstOrNull {
-                it.vendorId == TARGET_VID && it.productId == TARGET_PID
-            } ?: devices.firstOrNull()
+                val granted = usbController.requestPermission(target)
+                if (!granted) {
+                    withContext(Dispatchers.Main) { log("USB permission denied.") }
+                    return@launch
+                }
 
-            if (target == null) {
-                withContext(Dispatchers.Main) { log("No target device selected.") }
-                return@launch
-            }
-
-            val granted = usbController.requestPermission(target)
-            if (!granted) {
-                withContext(Dispatchers.Main) { log("USB permission denied.") }
-                return@launch
-            }
-
-            val opened = usbController.openDevice(target)
-            withContext(Dispatchers.Main) {
-                if (opened) {
-                    activeDevice = target
-                    binding.tvStatus.text = "Connected: ${target.productName ?: "USB Device"}"
-                    binding.tvStatus.setTextColor(Color.GREEN)
-                    log("Device opened and interface claimed.")
-                    updateColorPreviewAndSend()
-                } else {
-                    binding.tvStatus.text = "Failed to open device."
-                    binding.tvStatus.setTextColor(Color.RED)
-                    log("openDevice() failed. The vendor interface may not exist.")
+                val opened = usbController.openDevice(target)
+                withContext(Dispatchers.Main) {
+                    if (opened) {
+                        activeDevice = target
+                        binding.tvStatus.text = "Connected: ${target.productName ?: "USB Device"}"
+                        binding.tvStatus.setTextColor(Color.GREEN)
+                        log("Device opened and interface claimed.")
+                        updateColorPreviewAndSend()
+                    } else {
+                        binding.tvStatus.text = "Failed to open device."
+                        binding.tvStatus.setTextColor(Color.RED)
+                        log("openDevice() failed. The vendor interface may not exist.")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    log("SCAN ERROR: ${e.message}")
                 }
             }
         }
     }
 
     private fun updateColorPreviewAndSend() {
-        val hue = binding.seekHue.progress
-        val color = Color.HSVToColor(floatArrayOf(hue.toFloat(), 1f, 1f))
-        binding.colorPreview.setBackgroundColor(color)
+        try {
+            val hue = binding.seekHue.progress
+            val color = Color.HSVToColor(floatArrayOf(hue.toFloat(), 1f, 1f))
+            binding.colorPreview.setBackgroundColor(color)
 
-        val device = activeDevice ?: return
-        val mode = binding.spinnerEffect.selectedItemPosition
-        val brightness = binding.seekBrightness.progress
-        val speed = binding.seekSpeed.progress
+            val device = activeDevice ?: return
+            val mode = binding.spinnerEffect.selectedItemPosition
+            val brightness = binding.seekBrightness.progress
+            val speed = binding.seekSpeed.progress
 
-        val hsv = FloatArray(3)
-        Color.colorToHSV(color, hsv)
-        val h = (hsv[0] / 360f * 255f).roundToInt().coerceIn(0, 255)
-        val s = (hsv[1] * 255f).roundToInt().coerceIn(0, 255)
-        val v = (hsv[2] * 255f).roundToInt().coerceIn(0, 255)
+            val hsv = FloatArray(3)
+            Color.colorToHSV(color, hsv)
+            val h = (hsv[0] / 360f * 255f).roundToInt().coerceIn(0, 255)
+            val s = (hsv[1] * 255f).roundToInt().coerceIn(0, 255)
+            val v = (hsv[2] * 255f).roundToInt().coerceIn(0, 255)
 
-        val packet = RgbPacketBuilder.buildPacket(mode, brightness, speed, h, s, v)
+            val packet = RgbPacketBuilder.buildPacket(mode, brightness, speed, h, s, v)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            val success = usbController.sendPacket(packet)
-            withContext(Dispatchers.Main) {
-                log(if (success) "Packet sent (mode=$mode, HSV=$h/$s/$v)" else "Packet failed")
+            lifecycleScope.launch(Dispatchers.IO) {
+                val success = usbController.sendPacket(packet)
+                withContext(Dispatchers.Main) {
+                    log(if (success) "Packet sent (mode=$mode, HSV=$h/$s/$v)" else "Packet failed")
+                }
             }
+        } catch (e: Exception) {
+            log("UI ERROR: ${e.message}")
         }
     }
 
