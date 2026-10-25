@@ -5,7 +5,6 @@ import android.hardware.usb.UsbDevice
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.Gravity
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -40,7 +39,8 @@ class MainActivity : AppCompatActivity() {
     private val hardwareModes = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0)
 
     // Store the color state for all 61 keys
-    private val keyColors = Array(61) { byteArrayOf(0, 255, 255) } // Default Cyan
+    // FIXED: Added .toByte() to the default Cyan values
+    private val keyColors = Array(61) { byteArrayOf(0.toByte(), 255.toByte(), 255.toByte()) } 
     
     // Labels for the grid (roughly matching the 61 keys)
     private val keyLabels = arrayOf(
@@ -272,7 +272,6 @@ class MainActivity : AppCompatActivity() {
     private fun sendPerKeyPacket(keyIndex: Int, r: Byte, g: Byte, b: Byte) {
         if (activeDevice == null) return
         
-        // Ported from JS: setKeyColor(keyIndex, r, g, b)
         val offset = 3 * keyIndex
         val packet = ByteArray(63) { 0 }
         packet[0] = 20
@@ -283,8 +282,6 @@ class MainActivity : AppCompatActivity() {
         packet[8] = g
         packet[9] = b
 
-        // We wrap it in the generic command structure expected by our working usbController
-        // cmdByte is 6, payload starts with our packet
         val finalCmd = byteArrayOf(6) + packet
         
         lifecycleScope.launch(Dispatchers.IO) {
@@ -298,7 +295,6 @@ class MainActivity : AppCompatActivity() {
     private fun sendAllKeysPacket() {
         if (activeDevice == null) return
 
-        // Ported from JS: setAllKeyColors(colorArray, keyCount)
         val totalBytes = 61 * 3
         val chunkSize = 56
         val chunks = Math.ceil(totalBytes.toDouble() / chunkSize).toInt()
@@ -324,7 +320,6 @@ class MainActivity : AppCompatActivity() {
 
             val finalCmd = byteArrayOf(6) + packet
             
-            // Send each chunk (not async here to maintain order)
             usbController.sendPacket(finalCmd)
         }
         log("Sent ALL keys packet chunks.")
