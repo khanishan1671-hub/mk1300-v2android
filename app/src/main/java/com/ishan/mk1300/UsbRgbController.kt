@@ -53,39 +53,53 @@ class UsbRgbController(private val context: Context) {
     }
 
     fun openDevice(device: UsbDevice): Boolean {
-        val intf = (0 until device.interfaceCount)
-            .map { device.getInterface(it) }
-            .firstOrNull {
-                it.interfaceClass == UsbConstants.USB_CLASS_VENDOR_SPEC ||
-                it.interfaceClass == UsbConstants.USB_CLASS_HID
-            } ?: run {
-                Log.e(TAG, "No suitable interface found")
+        // SAFETY NET: Wraps everything so it cannot crash the app
+        try {
+            var targetIntf: UsbInterface? = null
+            var targetEp: UsbEndpoint? = null
+
+            // Loop through all interfaces to find the one with an OUT endpoint
+            for (i in 0 until device.interfaceCount) {
+                val intf = device.getInterface(i)
+                for (j in 0 until intf.endpointCount) {
+                    val ep = intf.getEndpoint(j)
+                    if (ep.direction == UsbConstants.USB_DIR_OUT) {
+                        targetIntf = intf
+                        targetEp = ep
+                        break
+                    }
+                }
+                if (targetIntf != null) break
+            }
+
+            if (targetIntf == null || targetEp == null) {
+                Log.e(TAG, "No OUT endpoint found on any interface")
                 return false
             }
 
-        val ep = (0 until intf.endpointCount)
-            .map { intf.getEndpoint(it) }
-            .firstOrNull { it.direction == UsbConstants.USB_DIR_OUT } ?: run {
-                Log.e(TAG, "No OUT endpoint found")
+            val conn = usbManager.openDevice(device) ?: run {
+                Log.e(TAG, "openDevice failed")
                 return false
             }
 
-        val conn = usbManager.openDevice(device) ?: run {
-            Log.e(TAG, "openDevice failed")
+            // Try to claim it. If Android blocks it, the catch block will handle it.
+            if (!conn.claimInterface(targetIntf, true)) {
+                Log.e(TAG, "claimInterface failed. The system might be holding it.")
+                conn.close()
+                return false
+            }
+
+            connection = conn
+            usbInterface = targetIntf
+            outEndpoint = targetEp
+            isConnected = true
+            Log.d(TAG, "Successfully claimed interface ID: ${targetIntf.id}")
+            return true
+
+        } catch (e: Exception) {
+            Log.e(TAG, "CRASH PREVENTED in openDevice: ${e.message}")
             return false
         }
-
-        if (!conn.claimInterface(intf, true)) {
-            Log.e(TAG, "claimInterface failed")
-            conn.close()
-            return false
-        }
-
-        connection = conn
-        usbInterface = intf
-        outEndpoint = ep
-        isConnected = true
-        return true
     }
 
     fun sendPacket(packet: ByteArray): Boolean {
@@ -102,7 +116,7 @@ class UsbRgbController(private val context: Context) {
                 tryControlTransfer(packet)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "sendPacket error", e)
+            Log.e(TAG, "sendPacket error: ${e.message}")
             false
         }
     }
@@ -126,7 +140,7 @@ class UsbRgbController(private val context: Context) {
             usbInterface?.let { connection?.releaseInterface(it) }
             connection?.close()
         } catch (e: Exception) {
-            Log.e(TAG, "close error", e)
+            Log.e(TAG, "close error: ${e.message}")
         } finally {
             connection = null
             usbInterface = null
