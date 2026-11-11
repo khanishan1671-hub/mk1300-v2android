@@ -2,201 +2,353 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:fillViewport="true"
+    android:background="#0D0E15">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:padding="16dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="MK1300 Controller"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
-
-        <Button
-            android:id="@+id/btnScanConnect"
+        <!-- HEADER / CONNECTION CARD -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Scan &amp; Connect" />
+            android:orientation="vertical"
+            android:background="#161926"
+            android:padding="16dp"
+            android:layout_marginBottom="14dp">
 
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Disconnected"
-            android:textColor="#FF0000"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-        <Button
-            android:id="@+id/btnToggleMode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Switch to Per-Key Matrix"
-            android:layout_marginBottom="16dp" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="MK1300 // CYBER-HUD"
+                    android:textColor="#F0F3F6"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.05" />
 
-        <!-- GLOBAL CONTROLS -->
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="DISCONNECTED"
+                    android:textColor="#FF0055"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:background="#2A1522"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnScanConnect"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="14dp"
+                android:text="⚡ SCAN &amp; CONNECT"
+                android:textColor="#0D0E15"
+                android:textStyle="bold"
+                android:textSize="14sp"
+                android:backgroundTint="#00F0FF" />
+
+            <Button
+                android:id="@+id/btnToggleMode"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:text="SWITCH TO PER-KEY MATRIX"
+                android:textColor="#00F0FF"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:backgroundTint="#1F2335" />
+        </LinearLayout>
+
+        <!-- GLOBAL CONTROLS CARD -->
         <LinearLayout
             android:id="@+id/layoutGlobal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:background="#161926"
+            android:padding="16dp"
+            android:layout_marginBottom="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LIGHTING ENGINE"
+                android:textColor="#FFE600"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:layout_marginBottom="8dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Effect Mode"
-                android:layout_gravity="start" />
+                android:textColor="#8B95A5"
+                android:textSize="12sp"
+                android:layout_marginBottom="4dp" />
+
             <Spinner
                 android:id="@+id/spinnerEffect"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp" />
+                android:layout_height="44dp"
+                android:background="#1F2335"
+                android:layout_marginBottom="14dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Brightness (0–4)"
-                android:layout_gravity="start" />
+                android:text="Luminance / Brightness (0–4)"
+                android:textColor="#8B95A5"
+                android:textSize="12sp" />
+
             <SeekBar
                 android:id="@+id/seekBrightness"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="4"
                 android:progress="4"
-                android:layout_marginBottom="12dp" />
+                android:progressTint="#FFE600"
+                android:thumbTint="#FFE600"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="14dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Speed (0–4)"
-                android:layout_gravity="start" />
+                android:text="Animation Speed (0–4)"
+                android:textColor="#8B95A5"
+                android:textSize="12sp" />
+
             <SeekBar
                 android:id="@+id/seekSpeed"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:max="4"
                 android:progress="2"
-                android:layout_marginBottom="16dp" />
+                android:progressTint="#00F0FF"
+                android:thumbTint="#00F0FF"
+                android:layout_marginTop="4dp" />
         </LinearLayout>
 
-        <!-- PER-KEY MATRIX CONTROLS -->
+        <!-- PER-KEY MATRIX CONTROLS CARD -->
         <LinearLayout
             android:id="@+id/layoutPerKey"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
+            android:background="#161926"
+            android:padding="16dp"
+            android:layout_marginBottom="14dp"
             android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MATRIX KEY SELECTOR"
+                android:textColor="#FF0055"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:layout_marginBottom="6dp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Tap any key to apply the color. Scroll horizontally to see all keys."
-                android:layout_marginBottom="8dp"/>
+                android:text="Tap key to assign color. Scroll horizontally to inspect full deck."
+                android:textColor="#8B95A5"
+                android:textSize="12sp"
+                android:layout_marginBottom="12dp" />
 
             <!-- The Keyboard Horizontal Scroll -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="14dp"
                 android:scrollbars="horizontal"
-                android:background="#222222"> <!-- Dark background makes keyboard pop -->
-                
+                android:background="#0A0B10">
+
                 <LinearLayout
                     android:id="@+id/keyRowContainer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:padding="8dp"/>
+                    android:padding="8dp" />
             </HorizontalScrollView>
 
             <Button
                 android:id="@+id/btnApplyAll"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Apply Color to ALL Keys"
-                android:layout_marginBottom="16dp"/>
+                android:layout_height="48dp"
+                android:text="APPLY BUFFER TO ALL KEYS"
+                android:textColor="#FF0055"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:backgroundTint="#241423" />
         </LinearLayout>
 
-        <!-- COLOR PICKER SECTION -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Hex Color Code"
-            android:layout_gravity="start" />
-        <EditText
-            android:id="@+id/etHex"
+        <!-- COLOR SPECTRUM SECTION -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="text"
-            android:hint="#FFFFFF"
-            android:maxLength="7"
-            android:singleLine="true"
-            android:layout_marginBottom="12dp" />
+            android:orientation="vertical"
+            android:background="#161926"
+            android:padding="16dp"
+            android:layout_marginBottom="14dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Red (0–255)"
-            android:layout_gravity="start" />
-        <SeekBar
-            android:id="@+id/seekR"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="255"
-            android:progress="0" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="RGB SPECTRUM CALIBRATION"
+                android:textColor="#00FFA3"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:layout_marginBottom="12dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Green (0–255)"
-            android:layout_gravity="start" />
-        <SeekBar
-            android:id="@+id/seekG"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="255"
-            android:progress="255" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Hex Color Code"
+                android:textColor="#8B95A5"
+                android:textSize="12sp"
+                android:layout_marginBottom="4dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Blue (0–255)"
-            android:layout_gravity="start" />
-        <SeekBar
-            android:id="@+id/seekB"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="255"
-            android:progress="255"
-            android:layout_marginBottom="12dp" />
+            <EditText
+                android:id="@+id/etHex"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:inputType="text"
+                android:hint="#00FFFF"
+                android:textColorHint="#4B5565"
+                android:textColor="#F0F3F6"
+                android:background="#1F2335"
+                android:paddingHorizontal="12dp"
+                android:maxLength="7"
+                android:singleLine="true"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="14dp" />
 
-        <View
-            android:id="@+id/colorPreview"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:background="#00FFFF"
-            android:layout_marginBottom="16dp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Red Channel (0–255)"
+                android:textColor="#FF4D6D"
+                android:textSize="12sp" />
 
-        <Button
-            android:id="@+id/btnLuck"
+            <SeekBar
+                android:id="@+id/seekR"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="255"
+                android:progress="0"
+                android:progressTint="#FF0055"
+                android:thumbTint="#FF0055"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Green Channel (0–255)"
+                android:textColor="#00FFA3"
+                android:textSize="12sp" />
+
+            <SeekBar
+                android:id="@+id/seekG"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="255"
+                android:progress="255"
+                android:progressTint="#00FFA3"
+                android:thumbTint="#00FFA3"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Blue Channel (0–255)"
+                android:textColor="#00F0FF"
+                android:textSize="12sp" />
+
+            <SeekBar
+                android:id="@+id/seekB"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="255"
+                android:progress="255"
+                android:progressTint="#00F0FF"
+                android:thumbTint="#00F0FF"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="14dp" />
+
+            <!-- ACTIVE COLOR PREVIEW -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Active Buffer Preview"
+                android:textColor="#8B95A5"
+                android:textSize="11sp"
+                android:layout_marginBottom="6dp" />
+
+            <View
+                android:id="@+id/colorPreview"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:background="#00FFFF"
+                android:layout_marginBottom="14dp" />
+
+            <Button
+                android:id="@+id/btnLuck"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="🎲 RANDOM OVERDRIVE"
+                android:textColor="#FFE600"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:backgroundTint="#262415" />
+        </LinearLayout>
+
+        <!-- CONSOLE / TELEMETRY CARD -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🎲 Try Your Luck" />
+            android:orientation="vertical"
+            android:background="#08090D"
+            android:padding="12dp">
 
-        <TextView
-            android:id="@+id/tvLog"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:textSize="12sp"
-            android:layout_marginTop="16dp"
-            android:text="Logs will appear here." />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PACKET STREAM // LOGS"
+                android:textColor="#00F0FF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
+                android:textColor="#00FFA3"
+                android:text="Hardware bus ready. Awaiting connection..." />
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>
