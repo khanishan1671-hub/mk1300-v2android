@@ -75,8 +75,9 @@ class MainActivity : AppCompatActivity() {
         KeyDef(117, "Ctrl", 1.25f, 4), KeyDef(118, "Fn", 1.5f, 4)
     )
 
-    // Max index is 118, so 119 slots needed
-    private val keyColors = Array(119) { byteArrayOf(0.toByte(), 255.toByte(), 255.toByte()) } 
+    // Store RGB for each key. Initialized to unlit / zeroed.
+    private val keyColors = Array(119) { byteArrayOf(0.toByte(), 0.toByte(), 0.toByte()) } 
+    private val keyButtons = mutableMapOf<Int, Button>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,14 +90,14 @@ class MainActivity : AppCompatActivity() {
         buildRealKeyboard()
         setupListeners()
         updateHexFromSliders()
+        updatePreviewBoxOnly()
     }
 
     private fun buildRealKeyboard() {
         binding.keyRowContainer.removeAllViews()
-        // FIX: The container holding the rows must stack vertically!
         binding.keyRowContainer.orientation = LinearLayout.VERTICAL
+        keyButtons.clear()
         
-        // 5 horizontal rows (Row 0 to 4)
         val rowContainers = Array(5) { 
             LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -113,7 +114,6 @@ class MainActivity : AppCompatActivity() {
 
         val density = resources.displayMetrics.density
 
-        // Populate keys horizontally per row
         for (keyDef in keyboardLayout) {
             val btn = Button(this).apply {
                 text = keyDef.name
@@ -122,7 +122,6 @@ class MainActivity : AppCompatActivity() {
                 isAllCaps = false
             }
 
-            // Accurate dp to pixel scaling for any device screen
             val widthPx = (keyDef.width * 42f * density).roundToInt()
             val heightPx = (42f * density).roundToInt()
 
@@ -131,15 +130,7 @@ class MainActivity : AppCompatActivity() {
             }
             btn.layoutParams = params
 
-            // Color setup
-            val c = keyColors[keyDef.index]
-            val rInt = c[0].toInt() and 0xFF
-            val gInt = c[1].toInt() and 0xFF
-            val bInt = c[2].toInt() and 0xFF
-            btn.setBackgroundColor(Color.rgb(rInt, gInt, bInt))
-            
-            // Contrast text color so keys are always readable
-            btn.setTextColor(if ((rInt * 0.299 + gInt * 0.587 + bInt * 0.114) > 140) Color.BLACK else Color.WHITE)
+            updateKeyButtonVisual(btn, keyColors[keyDef.index])
             
             btn.setOnClickListener {
                 val r = binding.seekR.progress.toByte()
@@ -147,16 +138,27 @@ class MainActivity : AppCompatActivity() {
                 val b = binding.seekB.progress.toByte()
                 keyColors[keyDef.index] = byteArrayOf(r, g, b)
 
-                val newR = r.toInt() and 0xFF
-                val newG = g.toInt() and 0xFF
-                val newB = b.toInt() and 0xFF
-                btn.setBackgroundColor(Color.rgb(newR, newG, newB))
-                btn.setTextColor(if ((newR * 0.299 + newG * 0.587 + newB * 0.114) > 140) Color.BLACK else Color.WHITE)
-
+                updateKeyButtonVisual(btn, keyColors[keyDef.index])
                 sendPerKeyPacket(keyDef.index, r, g, b)
             }
             
+            keyButtons[keyDef.index] = btn
             rowContainers[keyDef.row].addView(btn)
+        }
+    }
+
+    private fun updateKeyButtonVisual(btn: Button, colorBytes: ByteArray) {
+        val rInt = colorBytes[0].toInt() and 0xFF
+        val gInt = colorBytes[1].toInt() and 0xFF
+        val bInt = colorBytes[2].toInt() and 0xFF
+        
+        if (rInt == 0 && gInt == 0 && bInt == 0) {
+            btn.setBackgroundColor(Color.parseColor("#12141C"))
+            btn.setTextColor(Color.parseColor("#4B5565"))
+        } else {
+            btn.setBackgroundColor(Color.rgb(rInt, gInt, bInt))
+            val luminance = rInt * 0.299 + gInt * 0.587 + bInt * 0.114
+            btn.setTextColor(if (luminance > 140) Color.BLACK else Color.WHITE)
         }
     }
 
@@ -172,29 +174,30 @@ class MainActivity : AppCompatActivity() {
                 binding.layoutPerKey.visibility = View.VISIBLE
                 binding.btnToggleMode.text = "SWITCH TO GLOBAL EFFECTS"
                 
-                // Set to UserLight (position 15) for per-key control
+                // Switch hardware to UserLight mode (index 15) so custom keys display
                 binding.spinnerEffect.setSelection(15) 
-                updateColorPreviewAndSend() 
+                sendGlobalConfigPacket()
             } else {
                 binding.layoutGlobal.visibility = View.VISIBLE
                 binding.layoutPerKey.visibility = View.GONE
                 binding.btnToggleMode.text = "SWITCH TO PER-KEY MATRIX"
-                updateColorPreviewAndSend()
+                sendGlobalConfigPacket()
             }
         }
 
-        binding.btnApplyAll.setOnClickListener {
-            val r = binding.seekR.progress.toByte()
-            val g = binding.seekG.progress.toByte()
-            val b = binding.seekB.progress.toByte()
+        // CLEAR ALL / BLANK SLATE
+        binding.btnClearAll.setOnClickListener {
             for (i in 0 until 119) {
-                keyColors[i] = byteArrayOf(r, g, b)
+                keyColors[i] = byteArrayOf(0, 0, 0)
             }
-            buildRealKeyboard() 
+            // Update visual keys in UI
+            for ((idx, btn) in keyButtons) {
+                updateKeyButtonVisual(btn, keyColors[idx])
+            }
             sendAllKeysPacket()
+            log("🧹 Cleared all keys to unlit state.")
         }
 
-        // FIX: Connected the "Try Your Luck" randomizer button!
         binding.btnLuck.setOnClickListener {
             val randomR = Random.nextInt(256)
             val randomG = Random.nextInt(256)
@@ -203,15 +206,19 @@ class MainActivity : AppCompatActivity() {
             binding.seekG.progress = randomG
             binding.seekB.progress = randomB
             updateHexFromSliders()
-            updateColorPreviewAndSend()
-            log("🎲 Overdrive Color: R=$randomR G=$randomG B=$randomB")
+            updatePreviewBoxOnly()
+            if (!isPerKeyMode) {
+                sendGlobalConfigPacket()
+            }
+            log("🎲 Color: R=$randomR G=$randomG B=$randomB")
         }
 
         val rgbSeekListener = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser && !isUpdatingUI) {
                     updateHexFromSliders()
-                    if (!isPerKeyMode) updateColorPreviewAndSend()
+                    updatePreviewBoxOnly()
+                    if (!isPerKeyMode) sendGlobalConfigPacket()
                 }
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
@@ -237,7 +244,8 @@ class MainActivity : AppCompatActivity() {
                         binding.seekG.progress = g
                         binding.seekB.progress = b
                         isUpdatingUI = false
-                        if (!isPerKeyMode) updateColorPreviewAndSend()
+                        updatePreviewBoxOnly()
+                        if (!isPerKeyMode) sendGlobalConfigPacket()
                     } catch (e: Exception) {}
                 }
             }
@@ -245,7 +253,7 @@ class MainActivity : AppCompatActivity() {
 
         val basicSeekListener = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser && !isPerKeyMode) updateColorPreviewAndSend()
+                if (fromUser && !isPerKeyMode) sendGlobalConfigPacket()
             }
             override fun onStartTrackingTouch(sb: SeekBar?) {}
             override fun onStopTrackingTouch(sb: SeekBar?) {}
@@ -255,7 +263,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.spinnerEffect.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                if (!isPerKeyMode) updateColorPreviewAndSend()
+                if (!isPerKeyMode) sendGlobalConfigPacket()
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
@@ -270,6 +278,14 @@ class MainActivity : AppCompatActivity() {
         binding.etHex.setText(hex)
         binding.etHex.setSelection(binding.etHex.text.length)
         isUpdatingUI = false
+    }
+
+    // Always updates the active color preview box regardless of mode
+    private fun updatePreviewBoxOnly() {
+        val r = binding.seekR.progress
+        val g = binding.seekG.progress
+        val b = binding.seekB.progress
+        binding.colorPreview.setBackgroundColor(Color.rgb(r, g, b))
     }
 
     private fun scanAndConnect() {
@@ -303,7 +319,7 @@ class MainActivity : AppCompatActivity() {
                         binding.tvStatus.setTextColor(Color.parseColor("#00FFA3"))
                         binding.tvStatus.setBackgroundColor(Color.parseColor("#102820"))
                         log("Device synced & interface claimed successfully.")
-                        updateColorPreviewAndSend()
+                        sendGlobalConfigPacket()
                     } else {
                         binding.tvStatus.text = "SYNC FAILED"
                         binding.tvStatus.setTextColor(Color.parseColor("#FF0055"))
@@ -317,15 +333,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateColorPreviewAndSend() {
+    private fun sendGlobalConfigPacket() {
         try {
+            if (activeDevice == null) return
             val r = binding.seekR.progress
             val g = binding.seekG.progress
             val b = binding.seekB.progress
             val color = Color.rgb(r, g, b)
-            binding.colorPreview.setBackgroundColor(color)
 
-            if (activeDevice == null) return
             val uiPosition = binding.spinnerEffect.selectedItemPosition
             val mode = hardwareModes[uiPosition]
             val brightness = binding.seekBrightness.progress
@@ -368,7 +383,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             usbController.sendPacket(finalCmd)
             withContext(Dispatchers.Main) {
-                log("Per-Key Packet Dispatched: KeyIndex #$keyIndex")
+                log("Per-Key Dispatched: KeyIndex #$keyIndex")
             }
         }
     }
@@ -376,7 +391,6 @@ class MainActivity : AppCompatActivity() {
     private fun sendAllKeysPacket() {
         if (activeDevice == null) return
 
-        // FIX: Offload multi-chunk dispatch loop to IO Coroutine so UI doesn't stutter!
         lifecycleScope.launch(Dispatchers.IO) {
             val totalBytes = 119 * 3 
             val chunkSize = 56
@@ -405,7 +419,7 @@ class MainActivity : AppCompatActivity() {
                 usbController.sendPacket(finalCmd)
             }
             withContext(Dispatchers.Main) {
-                log("All-Key Chunks Deployed (357 bytes).")
+                log("All-Key Chunks Dispatched (357 bytes).")
             }
         }
     }
