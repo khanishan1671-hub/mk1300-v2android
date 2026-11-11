@@ -167,7 +167,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Tap key to assign color. Scroll horizontally to inspect full deck."
+                android:text="Select a color below, then tap any key to paint it. Scroll sideways to view the full deck."
                 android:textColor="#8B95A5"
                 android:textSize="12sp"
                 android:layout_marginBottom="12dp" />
@@ -189,10 +189,10 @@
             </HorizontalScrollView>
 
             <Button
-                android:id="@+id/btnApplyAll"
+                android:id="@+id/btnClearAll"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:text="APPLY BUFFER TO ALL KEYS"
+                android:text="🗑️ CLEAR ALL (BLANK SLATE)"
                 android:textColor="#FF0055"
                 android:textStyle="bold"
                 android:textSize="12sp"
