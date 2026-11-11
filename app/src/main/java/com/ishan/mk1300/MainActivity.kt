@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
 
@@ -38,7 +39,6 @@ class MainActivity : AppCompatActivity() {
     )
     private val hardwareModes = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0)
 
-    // Data classes to hold kicktroll's exact layout
     data class KeyDef(val index: Int, val name: String, val width: Float, val row: Int)
 
     private val keyboardLayout = listOf(
@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity() {
         KeyDef(117, "Ctrl", 1.25f, 4), KeyDef(118, "Fn", 1.5f, 4)
     )
 
-    // Max index is 118, so we need at least 119 slots.
+    // Max index is 118, so 119 slots needed
     private val keyColors = Array(119) { byteArrayOf(0.toByte(), 255.toByte(), 255.toByte()) } 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,46 +93,66 @@ class MainActivity : AppCompatActivity() {
 
     private fun buildRealKeyboard() {
         binding.keyRowContainer.removeAllViews()
+        // FIX: The container holding the rows must stack vertically!
+        binding.keyRowContainer.orientation = LinearLayout.VERTICAL
         
-        // We create 5 vertical columns (one for each row of the keyboard)
-        val rowContainers = Array(5) { LinearLayout(this) }
+        // 5 horizontal rows (Row 0 to 4)
+        val rowContainers = Array(5) { 
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+        }
         
-        for (i in 0 until 5) {
-            rowContainers[i].orientation = LinearLayout.VERTICAL
-            rowContainers[i].layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            binding.keyRowContainer.addView(rowContainers[i])
+        for (row in rowContainers) {
+            binding.keyRowContainer.addView(row)
         }
 
-        // Now populate each row
+        val density = resources.displayMetrics.density
+
+        // Populate keys horizontally per row
         for (keyDef in keyboardLayout) {
-            val btn = Button(this)
-            btn.text = keyDef.name
-            btn.textSize = 10f
-            btn.setPadding(0, 0, 0, 0)
-            btn.isAllCaps = false
+            val btn = Button(this).apply {
+                text = keyDef.name
+                textSize = 9f
+                setPadding(0, 0, 0, 0)
+                isAllCaps = false
+            }
 
-            // Convert the float width (e.g., 1.5f) to pixels
-            val widthPx = (keyDef.width * 45).toInt() // 45dp base width for a standard key
-            val heightPx = 45 * resources.displayMetrics.density.toInt()
+            // Accurate dp to pixel scaling for any device screen
+            val widthPx = (keyDef.width * 42f * density).roundToInt()
+            val heightPx = (42f * density).roundToInt()
 
-            val params = LinearLayout.LayoutParams(widthPx, heightPx)
-            params.setMargins(3, 3, 3, 3)
+            val params = LinearLayout.LayoutParams(widthPx, heightPx).apply {
+                setMargins(2, 2, 2, 2)
+            }
             btn.layoutParams = params
 
-            // Set initial color
+            // Color setup
             val c = keyColors[keyDef.index]
-            btn.setBackgroundColor(Color.rgb(c[0].toInt(), c[1].toInt(), c[2].toInt()))
+            val rInt = c[0].toInt() and 0xFF
+            val gInt = c[1].toInt() and 0xFF
+            val bInt = c[2].toInt() and 0xFF
+            btn.setBackgroundColor(Color.rgb(rInt, gInt, bInt))
             
-            // On click, send color to THAT specific index
+            // Contrast text color so keys are always readable
+            btn.setTextColor(if ((rInt * 0.299 + gInt * 0.587 + bInt * 0.114) > 140) Color.BLACK else Color.WHITE)
+            
             btn.setOnClickListener {
                 val r = binding.seekR.progress.toByte()
                 val g = binding.seekG.progress.toByte()
                 val b = binding.seekB.progress.toByte()
                 keyColors[keyDef.index] = byteArrayOf(r, g, b)
-                btn.setBackgroundColor(Color.rgb(r.toInt(), g.toInt(), b.toInt()))
+
+                val newR = r.toInt() and 0xFF
+                val newG = g.toInt() and 0xFF
+                val newB = b.toInt() and 0xFF
+                btn.setBackgroundColor(Color.rgb(newR, newG, newB))
+                btn.setTextColor(if ((newR * 0.299 + newG * 0.587 + newB * 0.114) > 140) Color.BLACK else Color.WHITE)
+
                 sendPerKeyPacket(keyDef.index, r, g, b)
             }
             
@@ -150,15 +170,15 @@ class MainActivity : AppCompatActivity() {
             if (isPerKeyMode) {
                 binding.layoutGlobal.visibility = View.GONE
                 binding.layoutPerKey.visibility = View.VISIBLE
-                binding.btnToggleMode.text = "Switch to Global Effects"
+                binding.btnToggleMode.text = "SWITCH TO GLOBAL EFFECTS"
                 
-                // Force UserLight mode to accept per-key
-                binding.spinnerEffect.setSelection(15) // "16: UserLight"
+                // Set to UserLight (position 15) for per-key control
+                binding.spinnerEffect.setSelection(15) 
                 updateColorPreviewAndSend() 
             } else {
                 binding.layoutGlobal.visibility = View.VISIBLE
                 binding.layoutPerKey.visibility = View.GONE
-                binding.btnToggleMode.text = "Switch to Per-Key Matrix"
+                binding.btnToggleMode.text = "SWITCH TO PER-KEY MATRIX"
                 updateColorPreviewAndSend()
             }
         }
@@ -170,8 +190,21 @@ class MainActivity : AppCompatActivity() {
             for (i in 0 until 119) {
                 keyColors[i] = byteArrayOf(r, g, b)
             }
-            buildRealKeyboard() // Update UI colors
+            buildRealKeyboard() 
             sendAllKeysPacket()
+        }
+
+        // FIX: Connected the "Try Your Luck" randomizer button!
+        binding.btnLuck.setOnClickListener {
+            val randomR = Random.nextInt(256)
+            val randomG = Random.nextInt(256)
+            val randomB = Random.nextInt(256)
+            binding.seekR.progress = randomR
+            binding.seekG.progress = randomG
+            binding.seekB.progress = randomB
+            updateHexFromSliders()
+            updateColorPreviewAndSend()
+            log("🎲 Overdrive Color: R=$randomR G=$randomG B=$randomB")
         }
 
         val rgbSeekListener = object : SeekBar.OnSeekBarChangeListener {
@@ -220,14 +253,12 @@ class MainActivity : AppCompatActivity() {
         binding.seekBrightness.setOnSeekBarChangeListener(basicSeekListener)
         binding.seekSpeed.setOnSeekBarChangeListener(basicSeekListener)
 
-        binding.spinnerEffect.setOnItemSelectedListener(
-            object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                    if (!isPerKeyMode) updateColorPreviewAndSend()
-                }
-                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        binding.spinnerEffect.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                if (!isPerKeyMode) updateColorPreviewAndSend()
             }
-        )
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
     }
 
     private fun updateHexFromSliders() {
@@ -245,16 +276,16 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val devices = (getSystemService(USB_SERVICE) as android.hardware.usb.UsbManager).deviceList.values
-                withContext(Dispatchers.Main) {
-                    if (devices.isEmpty()) {
-                        log("No USB devices found. Check OTG connection.")
-                        return@withContext
+                if (devices.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        log("No USB devices found. Check OTG cable & settings.")
                     }
+                    return@launch
                 }
 
                 val target = devices.firstOrNull { it.vendorId == TARGET_VID && it.productId == TARGET_PID } ?: devices.firstOrNull()
                 if (target == null) {
-                    withContext(Dispatchers.Main) { log("No target device selected.") }
+                    withContext(Dispatchers.Main) { log("No target device found.") }
                     return@launch
                 }
 
@@ -268,13 +299,15 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     if (opened) {
                         activeDevice = target
-                        binding.tvStatus.text = "Connected: ${target.productName ?: "USB Device"}"
-                        binding.tvStatus.setTextColor(Color.GREEN)
-                        log("Device opened and interface claimed.")
+                        binding.tvStatus.text = "ONLINE // ${target.productName ?: "MK1300"}"
+                        binding.tvStatus.setTextColor(Color.parseColor("#00FFA3"))
+                        binding.tvStatus.setBackgroundColor(Color.parseColor("#102820"))
+                        log("Device synced & interface claimed successfully.")
                         updateColorPreviewAndSend()
                     } else {
-                        binding.tvStatus.text = "Failed to open device."
-                        binding.tvStatus.setTextColor(Color.RED)
+                        binding.tvStatus.text = "SYNC FAILED"
+                        binding.tvStatus.setTextColor(Color.parseColor("#FF0055"))
+                        binding.tvStatus.setBackgroundColor(Color.parseColor("#2A1522"))
                         log("openDevice() failed.")
                     }
                 }
@@ -292,7 +325,7 @@ class MainActivity : AppCompatActivity() {
             val color = Color.rgb(r, g, b)
             binding.colorPreview.setBackgroundColor(color)
 
-            val device = activeDevice ?: return
+            if (activeDevice == null) return
             val uiPosition = binding.spinnerEffect.selectedItemPosition
             val mode = hardwareModes[uiPosition]
             val brightness = binding.seekBrightness.progress
@@ -309,7 +342,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 val success = usbController.sendPacket(packet)
                 withContext(Dispatchers.Main) {
-                    log(if (success) "Global Packet sent (Mode $mode)" else "Global Packet failed")
+                    log(if (success) "Sent Global Packet [Mode $mode]" else "Failed to send packet")
                 }
             }
         } catch (e: Exception) {
@@ -335,7 +368,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             usbController.sendPacket(finalCmd)
             withContext(Dispatchers.Main) {
-                log("Per-Key Packet: Index $keyIndex")
+                log("Per-Key Packet Dispatched: KeyIndex #$keyIndex")
             }
         }
     }
@@ -343,35 +376,38 @@ class MainActivity : AppCompatActivity() {
     private fun sendAllKeysPacket() {
         if (activeDevice == null) return
 
-        // Max index 118 = 119 total keys. 119 * 3 = 357 total bytes.
-        val totalBytes = 119 * 3 
-        val chunkSize = 56
-        val chunks = Math.ceil(totalBytes.toDouble() / chunkSize).toInt()
+        // FIX: Offload multi-chunk dispatch loop to IO Coroutine so UI doesn't stutter!
+        lifecycleScope.launch(Dispatchers.IO) {
+            val totalBytes = 119 * 3 
+            val chunkSize = 56
+            val chunks = Math.ceil(totalBytes.toDouble() / chunkSize).toInt()
 
-        for (i in 0 until chunks) {
-            val offset = chunkSize * i
-            val remaining = totalBytes - offset
-            val thisChunk = Math.min(chunkSize, remaining)
-            val isLast = (i == chunks - 1)
+            for (i in 0 until chunks) {
+                val offset = chunkSize * i
+                val remaining = totalBytes - offset
+                val thisChunk = Math.min(chunkSize, remaining)
+                val isLast = (i == chunks - 1)
 
-            val packet = ByteArray(63) { 0 }
-            packet[0] = 18
-            packet[1] = (if (isLast && remaining % chunkSize > 0) (remaining % chunkSize) + 3 else chunkSize + 3).toByte()
-            packet[2] = (offset and 0xFF).toByte()
-            packet[3] = ((offset shr 8) and 0xFF).toByte()
+                val packet = ByteArray(63) { 0 }
+                packet[0] = 18
+                packet[1] = (if (isLast && remaining % chunkSize > 0) (remaining % chunkSize) + 3 else chunkSize + 3).toByte()
+                packet[2] = (offset and 0xFF).toByte()
+                packet[3] = ((offset shr 8) and 0xFF).toByte()
 
-            for (j in 0 until thisChunk) {
-                val byteIndex = offset + j
-                val keyIndex = byteIndex / 3
-                val colorChannel = byteIndex % 3 
-                // Check bounds just in case
-                packet[7 + j] = if (keyIndex < keyColors.size) keyColors[keyIndex][colorChannel] else 0
+                for (j in 0 until thisChunk) {
+                    val byteIndex = offset + j
+                    val keyIndex = byteIndex / 3
+                    val colorChannel = byteIndex % 3 
+                    packet[7 + j] = if (keyIndex < keyColors.size) keyColors[keyIndex][colorChannel] else 0
+                }
+
+                val finalCmd = byteArrayOf(6) + packet
+                usbController.sendPacket(finalCmd)
             }
-
-            val finalCmd = byteArrayOf(6) + packet
-            usbController.sendPacket(finalCmd)
+            withContext(Dispatchers.Main) {
+                log("All-Key Chunks Deployed (357 bytes).")
+            }
         }
-        log("Sent ALL keys packet chunks.")
     }
 
     private fun log(msg: String) {
