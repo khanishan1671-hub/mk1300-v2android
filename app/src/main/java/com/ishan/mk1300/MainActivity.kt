@@ -88,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         binding.spinnerEffect.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, effectModes)
 
         buildRealKeyboard()
+        buildPresets() // <--- ADDED THIS LINE
         setupListeners()
         updateHexFromSliders()
         updatePreviewBoxOnly()
@@ -160,6 +161,58 @@ class MainActivity : AppCompatActivity() {
             val luminance = rInt * 0.299 + gInt * 0.587 + bInt * 0.114
             btn.setTextColor(if (luminance > 140) Color.BLACK else Color.WHITE)
         }
+    }
+
+    // --- PRESET ENGINE LOGIC ---
+    private fun buildPresets() {
+        binding.presetContainer.removeAllViews()
+        val presets = listOf("Cyberpunk", "Dracula", "Matrix", "Vaporwave", "Synthwave", "WASD", "Sunset", "Ocean", "Neon Noir", "Holographic")
+        
+        for (preset in presets) {
+            val btn = Button(this).apply {
+                text = preset
+                textSize = 12f
+                isAllCaps = false
+                setTextColor(Color.parseColor("#00F0FF"))
+                setBackgroundColor(Color.parseColor("#1F2335"))
+                val params = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                params.setMargins(8, 0, 8, 0)
+                layoutParams = params
+                setPadding(24, 12, 24, 12)
+            }
+
+            btn.setOnClickListener {
+                applyPreset(preset)
+            }
+            binding.presetContainer.addView(btn)
+        }
+    }
+
+    private fun applyPreset(name: String) {
+        if (activeDevice == null) {
+            log("Connect to keyboard first!")
+            return
+        }
+
+        // 1. Get the calculated colors from PatternEngine
+        val presetColors = PatternEngine.getPreset(name)
+        
+        // 2. Update the internal keyColors array
+        for ((index, rgb) in presetColors) {
+            keyColors[index] = byteArrayOf(rgb.first.toByte(), rgb.second.toByte(), rgb.third.toByte())
+        }
+
+        // 3. Update the UI visuals on the virtual keyboard
+        for ((idx, btn) in keyButtons) {
+            updateKeyButtonVisual(btn, keyColors[idx])
+        }
+
+        // 4. Send all colors to the hardware
+        sendAllKeysPacket()
+        log("✨ Applied Preset: $name")
     }
 
     private fun setupListeners() {
